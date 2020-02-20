@@ -1,5 +1,6 @@
 # Start from debian
 FROM debian:stretch-slim
+LABEL MAINTAINER "richban"
 
 # Update so we can download packages
 RUN apt-get update
@@ -19,7 +20,7 @@ RUN apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C3
 
 # Install ROS
 RUN apt-get update
-RUN apt-get install -y ros-melodic-desktop
+RUN apt-get install -y --allow-unauthenticated ros-$ROS_DISTRO-desktop-full
 
 # Set up ROS
 RUN rosdep init
@@ -42,7 +43,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
     git \
     procps \
     python \
-    python-numpy
+    python-numpy \
+    python3-pip
 
 # Download NoVNC and unpack
 ENV NO_VNC_VERSION 1.1.0
@@ -57,10 +59,11 @@ EXPOSE 6080
 # Install the racecar simulator
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get install -y \
-    ros-melodic-tf2-geometry-msgs \
-    ros-melodic-ackermann-msgs \
-    ros-melodic-joy \
-    ros-melodic-map-server \
+    --allow-unauthenticated \
+    ros-$ROS_DISTRO-tf2-geometry-msgs \
+    ros-$ROS_DISTRO-ackermann-msgs \
+    ros-$ROS_DISTRO-joy \
+    ros-$ROS_DISTRO-map-server \
     build-essential
 ENV SIM_WS /opt/ros/sim_ws
 RUN mkdir -p $SIM_WS/src
@@ -72,7 +75,7 @@ RUN /bin/bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; cd $SIM_WS; catkin_mak
 RUN mkdir -p /racecar_ws/src
 RUN /bin/bash -c 'source $SIM_WS/devel/setup.bash; cd racecar_ws; catkin_make;'
 
-# Install some cool programs
+# Install some programs
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get install -y \
     vim \
@@ -81,9 +84,18 @@ RUN DEBIAN_FRONTEND=noninteractive \
     xterm \
     screen \
     tmux \
-    locales
+    locales 
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 RUN locale-gen
+
+# Install Gazebo
+# RUN curl -sSL http://get.gazebosim.org | sh
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y \
+    --allow-unauthenticated \
+    ros-$ROS_DISTRO-gazebo-ros-pkgs \
+    ros-$ROS_DISTRO-gazebo-ros-control
+RUN cd racecar_ws && rosdep install --from-paths . --ignore-src --rosdistro $ROS_DISTRO -y
 
 # Install a window manager
 RUN DEBIAN_FRONTEND=noninteractive \
