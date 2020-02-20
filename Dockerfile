@@ -1,5 +1,6 @@
 # Start from debian
 FROM debian:stretch-slim
+ENV OS_NAME "Debian"
 LABEL MAINTAINER "richban"
 
 # Update so we can download packages
@@ -75,6 +76,11 @@ RUN /bin/bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; cd $SIM_WS; catkin_mak
 RUN mkdir -p /racecar_ws/src
 RUN /bin/bash -c 'source $SIM_WS/devel/setup.bash; cd racecar_ws; catkin_make;'
 
+# Install the racecar gazebo repo
+RUN cd $HOME/racecar_ws/src
+RUN git clone https://github.com/mit-racecar/racecar_gazebo.git
+RUN /bin/bash -c 'source $SIM_WS/devel/setup.bash; cd racecar_ws; catkin_make;'
+
 # Install some programs
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get install -y \
@@ -84,17 +90,19 @@ RUN DEBIAN_FRONTEND=noninteractive \
     xterm \
     screen \
     tmux \
-    locales 
+    locales \
+    zsh
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 RUN locale-gen
 
 # Install Gazebo
 # RUN curl -sSL http://get.gazebosim.org | sh
-RUN DEBIAN_FRONTEND=noninteractive \
-    apt-get install -y \
-    --allow-unauthenticated \
-    ros-$ROS_DISTRO-gazebo-ros-pkgs \
-    ros-$ROS_DISTRO-gazebo-ros-control
+# RUN DEBIAN_FRONTEND=noninteractive \
+#     apt-get install -y \
+#     --allow-unauthenticated \
+#     ros-$ROS_DISTRO-gazebo-ros-pkgs \
+#     ros-$ROS_DISTRO-gazebo-ros-control
+# # Install the missing dependencies using rosdep
 RUN cd racecar_ws && rosdep install --from-paths . --ignore-src --rosdistro $ROS_DISTRO -y
 
 # Install a window manager
@@ -109,10 +117,18 @@ RUN DEBIAN_FRONTEND=noninteractive \
 # Kill the bell!
 RUN echo "set bell-style none" >> /etc/inputrc
 
+# Install Some Cool Programs
+RUN curl -sLf https://spacevim.org/install.sh | bash
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)" > /dev/null 2>&1
+RUN cd $HOME && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM"/themes/powerlevel10k
+RUN cd $HOME && git clone --recursive https://github.com/richban/dotfiles.git $HOME/dotfiles
+RUN pip3 install --user -r $HOME/dotfiles/dotdrop/requirements.txt
+RUN ./$HOME/dotfiles/dotdrop.sh install --profile=OS_NAME
+   
 # Copy in config files
 COPY ./config/bash.bashrc /etc/
-COPY ./config/vimrc /root/.vimrc
 COPY ./config/Xresources /root/.Xresources
+COPY ./config/vimrc /root/.vimrc
 COPY ./config/screenrc /etc/
 COPY ./config/racecar.jpg /root/
 COPY ./config/default.rviz /root/.rviz/
